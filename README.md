@@ -110,10 +110,13 @@ Available modes (`--mode`): `off`, `static`, `pulse`, `flash`, `doubleflash`, `c
 
 ## Support This Project / Buy Me a Coffee
 
-If this tool finally lit up your AORUS case or GIGABYTE fans on macOS after years of searching, consider starring the repo or buying me a coffee!
+If you find this tool genuinely useful after searching for a macOS RGB Fusion solution, consider starring the repo or buying me a coffee!
 
-- Star this repository on GitHub
-- *(Add your Buy Me a Coffee / Momo / GitHub Sponsors link here)*
+*Nếu bạn thấy công cụ này thật sự hữu ích, hãy cho repo 1 sao hoặc mời mình một ly cafe qua MoMo bên dưới nhé!*
+
+<p align="center">
+  <img src="docs/donate-momo.jpg" alt="Donate via MoMo - DINH CONG TRIEU" width="260" />
+</p>
 
 ---
 
