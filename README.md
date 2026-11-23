@@ -8,7 +8,7 @@ A lightweight (~40 KB), native **macOS GUI & CLI** controller for **GIGABYTE / A
 
 Designed especially for **Hackintosh** and macOS users whose AORUS case logo turns off after BIOS or whose GIGABYTE motherboard / ARGB fan headers cannot be controlled by OpenRGB.
 
-![AORUS RGB Fusion for macOS](docs/screenshot.jpg)
+![AORUS RGB Fusion for macOS](docs/screenshot.png)
 
 ---
 
