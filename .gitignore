@@ -1,0 +1,7 @@
+build/
+dist/
+*.app/
+aorus-led
+.DS_Store
+.AppIcon.iconset/
+*.o

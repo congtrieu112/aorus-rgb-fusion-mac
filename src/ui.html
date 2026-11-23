@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AORUS RGB Fusion</title>
+<style>
+  :root {
+    --bg: #0b0b0d;
+    --panel: #141418;
+    --border: #2a2a33;
+    --orange: #ff6400;
+    --text: #e6e6eb;
+    --muted: #848494;
+  }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar {
+    height: 52px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px 0 84px;
+    background: linear-gradient(180deg, #16161b 0%, #0e0e11 100%);
+    border-bottom: 1px solid #23232b; position: relative;
+    -webkit-app-region: drag;
+  }
+  .topbar::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: linear-gradient(90deg, var(--orange) 0%, var(--orange) 68%, transparent 92%);
+  }
+  .title-wrap { display: flex; align-items: baseline; gap: 10px; }
+  .title { font-size: 16px; font-weight: 700; letter-spacing: 1.4px; color: #fff; }
+  .subtitle { font-size: 11px; color: var(--orange); letter-spacing: 1px; font-weight: 600; }
+  .status-group { display: flex; gap: 8px; -webkit-app-region: no-drag; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px; font-size: 11px; color: #b7b7c6;
+    background: #1a1a21; border: 1px solid #2b2b36; padding: 4px 10px; border-radius: 4px;
+    cursor: pointer;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #555; }
+  .dot.ok { background: #22c55e; box-shadow: 0 0 7px #22c55e; }
+  .dot.err { background: #ef4444; box-shadow: 0 0 7px #ef4444; }
+
+  /* 4-column layout: Sidebar | Visual Stage | Modes | Controls */
+  .main {
+    flex: 1; display: grid;
+    grid-template-columns: 118px 300px 136px 1fr;
+    padding: 16px 20px 12px 16px;
+    align-items: stretch;
+  }
+
+  /* Sidebar matching RGB Fusion 2.0 */
+  .sidebar {
+    display: flex; flex-direction: column; gap: 12px;
+    padding-right: 14px; border-right: 1px solid #1e1e26;
+  }
+  .sync-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 6px; border-radius: 4px;
+    background: #18181f; border: 1px solid #353542; color: #9c9cae;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.7px; cursor: pointer;
+    text-transform: uppercase;
+  }
+  .sync-btn.active {
+    background: linear-gradient(180deg, #ff7014 0%, #c84b00 100%);
+    border-color: #ff944d; color: #fff;
+    box-shadow: 0 0 12px rgba(255,100,0,0.4);
+  }
+  .dev-tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; padding: 12px 6px; border-radius: 5px;
+    background: #14141a; border: 1px solid #282833; color: #8c8ca0; cursor: pointer;
+    transition: all 0.14s ease;
+  }
+  .dev-tab:hover { border-color: #555; color: #ddd; }
+  .dev-tab.active {
+    border-color: var(--orange); color: #fff;
+    background: rgba(255,100,0,0.1);
+    box-shadow: inset 0 0 12px rgba(255,100,0,0.16);
+  }
+  .dev-tab svg { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+  .dev-tab span { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-align: center; }
+
+  /* Visual stage */
+  .stage-pane {
+    display: flex; flex-direction: column; padding: 0 16px; gap: 10px;
+  }
+  .zone-bar {
+    display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
+  }
+  .zone-chip {
+    font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 3px;
+    background: #181820; border: 1px solid #2c2c38; color: #9898aa; cursor: pointer;
+  }
+  .zone-chip.active {
+    border-color: var(--orange); color: var(--orange); background: rgba(255,100,0,0.12);
+  }
+  .stage-box {
+    flex: 1; background: radial-gradient(circle at 50% 50%, #191922 0%, #0d0d11 78%);
+    border: 1px solid var(--border); border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; padding: 12px;
+  }
+
+  /* Motherboard schematic */
+  .mb-board {
+    width: 214px; height: 274px; border: 2px solid #353542; border-radius: 5px;
+    background: linear-gradient(155deg, #1b1b23 0%, #111116 100%);
+    position: relative; box-shadow: 0 14px 30px rgba(0,0,0,0.6);
+  }
+  .mb-cpu {
+    position: absolute; top: 34px; left: 66px; width: 64px; height: 64px;
+    border: 1px solid #2d2d38; background: #15151b; border-radius: 3px;
+  }
+  .mb-ram {
+    position: absolute; top: 30px; right: 20px; width: 22px; height: 74px;
+    border: 1px solid #2d2d38; background: repeating-linear-gradient(90deg,#1a1a22,#1a1a22 3px,#101015 3px,#101015 6px);
+  }
+  .mb-pcie {
+    position: absolute; left: 26px; width: 120px; height: 10px;
+    border: 1px solid #2c2c38; background: #14141a;
+  }
+  .mb-zone {
+    position: absolute; cursor: pointer; transition: all 0.14s ease;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+    border-radius: 3px; border: 1px solid rgba(255,255,255,0.2);
+  }
+  .mb-zone.selected { outline: 2px solid #fff; outline-offset: 2px; }
+  .mz-ledc2 { top: -12px; left: 26px; width: 64px; height: 20px; }
+  .mz-dled2 { top: -12px; right: 16px; width: 82px; height: 20px; }
+  .mz-ledc1 { bottom: -12px; left: 26px; width: 64px; height: 20px; }
+  .mz-dled1 { bottom: -12px; right: 16px; width: 82px; height: 20px; }
+  .mz-ob1 { top: 112px; right: -10px; width: 18px; height: 34px; }
+  .mz-ob2 { top: 154px; right: -10px; width: 18px; height: 34px; }
+  .mz-ob3 { top: 196px; right: -10px; width: 18px; height: 34px; }
+
+  /* Case schematic */
+  .case-frame {
+    width: 170px; height: 274px; border: 2px solid #2e2e38; border-radius: 6px;
+    background: linear-gradient(160deg, #18181f 0%, #0d0d11 100%);
+    display: flex; flex-direction: column; justify-content: space-between; padding: 15px;
+    box-shadow: 0 18px 36px rgba(0,0,0,0.65);
+  }
+  .case-glass { height: 180px; border: 1px solid #262630; border-radius: 3px; }
+  .case-shroud {
+    height: 54px; border-top: 1px solid #2c2c38;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .aorus-logo-glow svg { width: 48px; height: 40px; }
+  .stage-caption {
+    margin-top: 16px; font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    text-transform: uppercase; text-align: center;
+  }
+
+  /* Center modes */
+  .modes-pane {
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    padding: 0 10px; border-left: 1px solid #1e1e26; border-right: 1px solid #1e1e26;
+  }
+  .mode-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 7px 4px; background: transparent; border: 1px solid transparent;
+    border-radius: 5px; color: #828293; cursor: pointer; transition: all 0.14s ease;
+  }
+  .mode-btn:hover { color: #d6d6e2; background: rgba(255,255,255,0.03); }
+  .mode-btn.active {
+    color: var(--orange); background: rgba(255,100,0,0.09);
+    border-color: rgba(255,100,0,0.45);
+  }
+  .mode-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .mode-btn span { font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+
+  /* Right controls */
+  .right-pane {
+    display: flex; flex-direction: column; padding-left: 18px; gap: 11px;
+  }
+  .wheel-wrap { display: flex; justify-content: center; align-items: center; position: relative; }
+  #wheel {
+    width: 182px; height: 182px; border-radius: 50%; cursor: crosshair;
+    box-shadow: 0 0 0 2px #262630, 0 10px 24px rgba(0,0,0,0.6);
+  }
+  .wheel-cursor {
+    position: absolute; width: 14px; height: 14px; border: 2.5px solid #fff; border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0,0,0,0.9); pointer-events: none; transform: translate(-50%, -50%);
+  }
+  .swatches-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .swatch {
+    height: 18px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.16); cursor: pointer;
+  }
+  .swatch:hover { transform: scale(1.08); border-color: #fff; }
+  .section-label {
+    font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: -4px;
+  }
+  .save-fav-btn {
+    background: none; border: 1px solid #30303b; color: #b0b0c0; font-size: 10px;
+    padding: 2px 7px; border-radius: 3px; cursor: pointer;
+  }
+  .save-fav-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+  .rgb-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 7px; }
+  .rgb-field {
+    display: flex; align-items: center; background: #17171d; border: 1px solid var(--border);
+    border-radius: 3px; overflow: hidden;
+  }
+  .rgb-field label {
+    padding: 5px 6px; font-size: 11px; font-weight: 700; color: var(--muted);
+    background: #1f1f27; border-right: 1px solid var(--border);
+  }
+  .rgb-field input {
+    width: 100%; background: transparent; border: none; color: #fff; font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 6px; outline: none;
+    user-select: text; -webkit-user-select: text;
+  }
+
+  .slider-group { display: flex; flex-direction: column; gap: 5px; }
+  .slider-head { display: flex; justify-content: space-between; font-size: 11px; color: #c0c0ce; }
+  .slider-val { color: var(--orange); font-weight: 700; }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; background: #2b2b35; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 2px;
+    background: var(--orange); border: 1px solid #ff9a52; cursor: pointer;
+  }
+
+  .footer {
+    height: 52px; padding: 0 22px; border-top: 1px solid #1e1e26; background: #0e0e12;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .autostart-wrap { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #b7b7c6; cursor: pointer; }
+  .autostart-wrap input { accent-color: var(--orange); width: 14px; height: 14px; cursor: pointer; }
+  .btn-group { display: flex; gap: 10px; }
+  .btn {
+    min-width: 108px; height: 32px; border-radius: 3px; font-size: 12px; font-weight: 700;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+  }
+  .btn-reset { background: #1b1b22; border: 1px solid #3c3c4a; color: #d0d0dc; }
+  .btn-reset:hover { border-color: #888; color: #fff; }
+  .btn-apply {
+    background: linear-gradient(180deg, #ff741a 0%, #d95200 100%);
+    border: 1px solid #ff8c42; color: #fff; box-shadow: 0 0 12px rgba(255,100,0,0.35);
+  }
+  .btn-apply:hover { filter: brightness(1.1); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="title-wrap">
+      <div class="title" id="headerTitle">GIGABYTE MOTHERBOARD</div>
+      <div class="subtitle">RGB FUSION FOR MACOS</div>
+    </div>
+    <div class="status-group" id="statusGroup" title="Click to refresh USB devices">
+      <div class="status-pill"><span class="dot" id="mbDot"></span><span id="mbStatus">MB: ...</span></div>
+      <div class="status-pill"><span class="dot" id="caseDot"></span><span id="caseStatus">Case: ...</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <button class="sync-btn" id="syncBtn">⟳ SYNC MODE</button>
+      <button class="dev-tab active" id="tabMb">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1.5"/><rect x="7" y="7" width="5" height="5"/><line x1="15" y1="7" x2="15" y2="12"/><line x1="18" y1="7" x2="18" y2="12"/><line x1="6" y1="16" x2="14" y2="16"/></svg>
+        <span id="tabMbLabel">GIGABYTE MB<br/>MB &amp; Fans</span>
+      </button>
+      <button class="dev-tab" id="tabCase">
+        <svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="1.5"/><line x1="6" y1="16" x2="18" y2="16"/><circle cx="12" cy="19" r="1"/></svg>
+        <span id="tabCaseLabel">AORUS Case<br/>Case Logo</span>
+      </button>
+    </div>
+
+    <!-- Visual Stage -->
+    <div class="stage-pane">
+      <!-- MB View -->
+      <div id="mbView" style="display:flex;flex-direction:column;height:100%;gap:10px;">
+        <div class="zone-bar" id="mbZoneBar">
+          <button class="zone-chip active" data-zone="-1">ALL HEADERS</button>
+          <button class="zone-chip" data-zone="0">LED_C1</button>
+          <button class="zone-chip" data-zone="4">LED_C2</button>
+          <button class="zone-chip" data-zone="5">D_LED1 (Fans)</button>
+          <button class="zone-chip" data-zone="6">D_LED2 (Fans)</button>
+          <button class="zone-chip" data-zone="1">Onboard</button>
+        </div>
+        <div class="stage-box">
+          <div class="mb-board">
+            <div class="mb-cpu"></div>
+            <div class="mb-ram"></div>
+            <div class="mb-pcie" style="top:132px"></div>
+            <div class="mb-pcie" style="top:164px"></div>
+            <div class="mb-pcie" style="top:196px"></div>
+
+            <div class="mb-zone mz-ledc2" data-zone="4" id="mz4">LED_C2</div>
+            <div class="mb-zone mz-dled2" data-zone="6" id="mz6">D_LED2</div>
+            <div class="mb-zone mz-ledc1" data-zone="0" id="mz0">LED_C1</div>
+            <div class="mb-zone mz-dled1" data-zone="5" id="mz5">D_LED1</div>
+            <div class="mb-zone mz-ob1" data-zone="1" id="mz1"></div>
+            <div class="mb-zone mz-ob2" data-zone="2" id="mz2"></div>
+            <div class="mb-zone mz-ob3" data-zone="3" id="mz3"></div>
+          </div>
+          <div class="stage-caption" id="mbCaption">ALL ZONES • STATIC • #FFAA00</div>
+        </div>
+      </div>
+
+      <!-- Case View -->
+      <div id="caseView" class="hidden" style="display:flex;flex-direction:column;height:100%;gap:10px;">
+        <div class="stage-box">
+          <div class="case-frame">
+            <div class="case-glass"></div>
+            <div class="case-shroud">
+              <div class="aorus-logo-glow" id="logoGlow">
+                <svg viewBox="0 0 64 56">
+                  <path id="logoPath" d="M8 10 L36 6 L56 18 L40 22 L54 32 L34 36 L44 48 L22 44 L14 32 L26 28 L10 22 Z" fill="#FFAA00"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="stage-caption" id="caseCaption">AC300W LOGO • STATIC • #FFAA00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Modes -->
+    <div class="modes-pane">
+      <button class="mode-btn active" data-mode="1">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+        <span>Static</span>
+      </button>
+      <button class="mode-btn" data-mode="2">
+        <svg viewBox="0 0 24 24"><path d="M2 12c2-7 4-7 6 0s4 7 6 0 4-7 6 0 2 2 2 0"/></svg>
+        <span>Pulse</span>
+      </button>
+      <button class="mode-btn" data-mode="3">
+        <svg viewBox="0 0 24 24"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg>
+        <span>Flash</span>
+      </button>
+      <button class="mode-btn" data-mode="4">
+        <svg viewBox="0 0 24 24"><path d="M9 3l1.5 4.5L15 9l-4.5 1.5L9 15l-1.5-4.5L3 9l4.5-1.5z"/><path d="M17 13l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/></svg>
+        <span>Double Flash</span>
+      </button>
+      <button class="mode-btn" data-mode="5">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.3"/><path d="M3 12a9 9 0 0 1 15.5-6.3"/><polyline points="16 5 19 6 18 9"/><polyline points="8 19 5 18 6 15"/></svg>
+        <span>Color Cycle</span>
+      </button>
+      <button class="mode-btn" data-mode="6" id="waveBtn">
+        <svg viewBox="0 0 24 24"><path d="M2 15c3-5 6-5 9 0s6 5 11 0"/><path d="M2 9c3-5 6-5 9 0s6 5 11 0"/></svg>
+        <span>Wave</span>
+      </button>
+      <button class="mode-btn" data-mode="0">
+        <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+        <span>Off</span>
+      </button>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="right-pane">
+      <div class="wheel-wrap">
+        <canvas id="wheel" width="182" height="182"></canvas>
+        <div class="wheel-cursor" id="wheelCursor"></div>
+      </div>
+
+      <div class="swatches-row" id="presetSwatches"></div>
+
+      <div class="section-label">
+        <span>Favorite Color</span>
+        <button class="save-fav-btn" id="saveFavBtn">+ Save Current</button>
+      </div>
+      <div class="swatches-row" id="favSwatches"></div>
+
+      <div class="rgb-row">
+        <div class="rgb-field"><label>R</label><input id="inR" type="number" min="0" max="255" value="255"></div>
+        <div class="rgb-field"><label>G</label><input id="inG" type="number" min="0" max="255" value="170"></div>
+        <div class="rgb-field"><label>B</label><input id="inB" type="number" min="0" max="255" value="0"></div>
+        <div class="rgb-field"><label>#</label><input id="inHex" type="text" maxlength="6" value="FFAA00"></div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-head"><span>Speed</span><span class="slider-val" id="speedVal">5</span></div>
+        <input type="range" id="speedSlider" min="1" max="10" value="5">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-head"><span>Brightness</span><span class="slider-val" id="briVal">10</span></div>
+        <input type="range" id="briSlider" min="1" max="10" value="10">
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <label class="autostart-wrap">
+      <input type="checkbox" id="autoStartChk">
+      <span>Auto-apply MB + Case LEDs on macOS login</span>
+    </label>
+    <div class="btn-group">
+      <button class="btn btn-reset" id="resetBtn">Reset</button>
+      <button class="btn btn-apply" id="applyBtn">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRESETS = ["FFFFFF","FF0000","FFAA00","FFFF00","00FF00","00FFFF","0044FF","B400FF"];
+const MODE_NAMES = {0:"OFF", 1:"STATIC", 2:"PULSE", 3:"FLASH", 4:"DOUBLE FLASH", 5:"COLOR CYCLE", 6:"WAVE"};
+const ZONE_NAMES = {"-1":"ALL ZONES", 0:"LED_C1", 1:"ONBOARD 1", 2:"ONBOARD 2", 3:"ONBOARD 3", 4:"LED_C2", 5:"D_LED1 (FANS)", 6:"D_LED2 (FANS)"};
+
+function makeZone(r=255,g=170,b=0,mode=1,brightness=10,speed=5) {
+  return {r, g, b, mode, brightness, speed};
+}
+
+let activeDevice = "mb"; // "mb" | "case"
+let activeMbZone = -1;   // -1 = all, 0..6 = specific header
+let autoStart = false;
+let detectedMbName = "GIGABYTE MB";
+let detectedCaseName = "AORUS CASE";
+let config = {
+  syncMode: false,
+  case: makeZone(),
+  mbZones: Array.from({length: 7}, () => makeZone())
+};
+let favorites = JSON.parse(localStorage.getItem("aorus_favs") || '["FFAA00","FF6400","FF2100","FFFF00","00FF66","00CCFF","7700FF","FFFFFF"]');
+
+function postNative(msg) {
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.aorus) {
+    window.webkit.messageHandlers.aorus.postMessage(msg);
+  }
+}
+
+function getCurrentEditable() {
+  if (activeDevice === "case") return config.case;
+  return config.mbZones[activeMbZone >= 0 ? activeMbZone : 0];
+}
+
+let previewTimer = null;
+function scheduleLivePreview() {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    const target = config.syncMode ? "all" : activeDevice;
+    const zoneMask = (config.syncMode || activeMbZone === -1) ? 0x7F : (1 << activeMbZone);
+    postNative({action: "preview", target, zoneMask, config});
+  }, 120);
+}
+
+function mutateCurrent(patch, skipPreview = false) {
+  if (config.syncMode) {
+    Object.assign(config.case, patch);
+    config.mbZones.forEach(z => Object.assign(z, patch));
+  } else if (activeDevice === "case") {
+    Object.assign(config.case, patch);
+  } else if (activeMbZone === -1) {
+    config.mbZones.forEach(z => Object.assign(z, patch));
+  } else {
+    Object.assign(config.mbZones[activeMbZone], patch);
+  }
+  updateUI();
+  if (!skipPreview) scheduleLivePreview();
+}
+
+// Wheel rendering
+const wheel = document.getElementById("wheel");
+const ctx = wheel.getContext("2d");
+const R = wheel.width / 2;
+
+function hsvToRgb(h, s, v) {
+  let c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;
+  let r=0, g=0, b=0;
+  if (h < 60) { r=c; g=x; } else if (h < 120) { r=x; g=c; }
+  else if (h < 180) { g=c; b=x; } else if (h < 240) { g=x; b=c; }
+  else if (h < 300) { r=x; b=c; } else { r=c; b=x; }
+  return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)];
+}
+function rgbToHsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  let max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - b) / d) % 6);
+    else if (max === g) h = 60 * (((b - r) / d) + 2);
+    else h = 60 * (((r - g) / d) + 4);
+  }
+  if (h < 0) h += 360;
+  return [h, max === 0 ? 0 : d / max, max];
+}
+function drawWheel() {
+  const img = ctx.createImageData(wheel.width, wheel.height);
+  for (let y = 0; y < wheel.height; y++) {
+    for (let x = 0; x < wheel.width; x++) {
+      const dx = x - R, dy = y - R, dist = Math.hypot(dx, dy);
+      if (dist <= R) {
+        let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        if (angle < 0) angle += 360;
+        const [r, g, b] = hsvToRgb(angle, dist / R, 1);
+        const idx = (y * wheel.width + x) * 4;
+        img.data[idx]=r; img.data[idx+1]=g; img.data[idx+2]=b; img.data[idx+3]=255;
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+drawWheel();
+
+function toHex(r, g, b) {
+  return [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+function updateUI() {
+  const cur = getCurrentEditable();
+  const hex = toHex(cur.r, cur.g, cur.b);
+
+  document.getElementById("syncBtn").classList.toggle("active", !!config.syncMode);
+  document.getElementById("tabMb").classList.toggle("active", activeDevice === "mb");
+  document.getElementById("tabCase").classList.toggle("active", activeDevice === "case");
+  document.getElementById("mbView").classList.toggle("hidden", activeDevice !== "mb");
+  document.getElementById("caseView").classList.toggle("hidden", activeDevice !== "case");
+  document.getElementById("headerTitle").textContent = config.syncMode
+    ? `SYNC MODE — ${detectedMbName} + ${detectedCaseName}`
+    : (activeDevice === "mb" ? detectedMbName : detectedCaseName);
+
+  document.getElementById("inR").value = cur.r;
+  document.getElementById("inG").value = cur.g;
+  document.getElementById("inB").value = cur.b;
+  document.getElementById("inHex").value = hex;
+  document.getElementById("speedSlider").value = cur.speed;
+  document.getElementById("speedVal").textContent = cur.speed;
+  document.getElementById("briSlider").value = cur.brightness;
+  document.getElementById("briVal").textContent = cur.brightness;
+  document.getElementById("autoStartChk").checked = autoStart;
+
+  // Wheel cursor
+  const [h, s] = rgbToHsv(cur.r, cur.g, cur.b);
+  const rad = h * Math.PI / 180;
+  const dist = s * (R - 4);
+  const rect = wheel.getBoundingClientRect();
+  const wrapRect = wheel.parentElement.getBoundingClientRect();
+  const cursor = document.getElementById("wheelCursor");
+  cursor.style.left = ((rect.left - wrapRect.left) + R + Math.cos(rad) * dist) + "px";
+  cursor.style.top = ((rect.top - wrapRect.top) + R + Math.sin(rad) * dist) + "px";
+
+  // Mode buttons
+  document.getElementById("waveBtn").classList.toggle("hidden", activeDevice === "case" && !config.syncMode);
+  document.querySelectorAll(".mode-btn").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.mode) === cur.mode);
+  });
+
+  // MB zone chips & schematic colors
+  document.querySelectorAll(".zone-chip").forEach(chip => {
+    chip.classList.toggle("active", Number(chip.dataset.zone) === activeMbZone);
+  });
+  for (let i = 0; i < 7; i++) {
+    const el = document.getElementById("mz" + i);
+    if (!el) continue;
+    const z = config.mbZones[i];
+    const zHex = toHex(z.r, z.g, z.b);
+    const col = z.mode === 0 ? "#24242c" : "#" + zHex;
+    el.style.background = col;
+    el.style.color = z.mode === 0 ? "#777" : "#000";
+    el.style.boxShadow = z.mode === 0 ? "none" : `0 0 10px ${col}`;
+    el.classList.toggle("selected", activeMbZone === i || activeMbZone === -1);
+  }
+  document.getElementById("mbCaption").textContent =
+    `${ZONE_NAMES[activeMbZone]} • ${MODE_NAMES[cur.mode] || "STATIC"} • #${hex}`;
+
+  // Case schematic
+  const cHex = toHex(config.case.r, config.case.g, config.case.b);
+  const logoPath = document.getElementById("logoPath");
+  const logoGlow = document.getElementById("logoGlow");
+  if (config.case.mode === 0) {
+    logoPath.setAttribute("fill", "#2c2c34");
+    logoGlow.style.filter = "none";
+  } else {
+    logoPath.setAttribute("fill", "#" + cHex);
+    logoGlow.style.filter = `drop-shadow(0 0 ${4 + config.case.brightness * 1.4}px #${cHex})`;
+  }
+  document.getElementById("caseCaption").textContent =
+    `AC300W LOGO • ${MODE_NAMES[config.case.mode] || "STATIC"} • #${cHex}`;
+}
+
+function pickFromWheel(e) {
+  const rect = wheel.getBoundingClientRect();
+  const x = e.clientX - rect.left - R, y = e.clientY - rect.top - R;
+  const dist = Math.min(R, Math.hypot(x, y));
+  let angle = Math.atan2(y, x) * 180 / Math.PI;
+  if (angle < 0) angle += 360;
+  const [r, g, b] = hsvToRgb(angle, dist / R, 1);
+  const cur = getCurrentEditable();
+  mutateCurrent({r, g, b, mode: cur.mode === 0 ? 1 : cur.mode});
+}
+let dragging = false;
+wheel.addEventListener("mousedown", e => { dragging = true; pickFromWheel(e); });
+window.addEventListener("mousemove", e => { if (dragging) pickFromWheel(e); });
+window.addEventListener("mouseup", () => { dragging = false; });
+
+function renderSwatches() {
+  const make = (containerId, list) => {
+    const el = document.getElementById(containerId);
+    el.innerHTML = "";
+    list.slice(0, 8).forEach(hex => {
+      const d = document.createElement("div");
+      d.className = "swatch";
+      d.style.background = "#" + hex;
+      d.onclick = () => {
+        const cur = getCurrentEditable();
+        mutateCurrent({
+          r: parseInt(hex.slice(0,2),16),
+          g: parseInt(hex.slice(2,4),16),
+          b: parseInt(hex.slice(4,6),16),
+          mode: cur.mode === 0 ? 1 : cur.mode
+        });
+      };
+      el.appendChild(d);
+    });
+  };
+  make("presetSwatches", PRESETS);
+  make("favSwatches", favorites);
+}
+
+document.getElementById("syncBtn").onclick = () => {
+  config.syncMode = !config.syncMode;
+  if (config.syncMode) {
+    const cur = {...getCurrentEditable()};
+    config.case = {...cur};
+    config.mbZones = Array.from({length: 7}, () => ({...cur}));
+    scheduleLivePreview();
+  }
+  updateUI();
+};
+document.getElementById("tabMb").onclick = () => { activeDevice = "mb"; updateUI(); };
+document.getElementById("tabCase").onclick = () => { activeDevice = "case"; updateUI(); };
+
+document.querySelectorAll(".zone-chip, .mb-zone").forEach(el => {
+  el.onclick = () => { activeMbZone = Number(el.dataset.zone); updateUI(); };
+});
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.onclick = () => mutateCurrent({mode: Number(btn.dataset.mode)});
+});
+
+["inR","inG","inB"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => {
+    mutateCurrent({
+      r: Math.max(0, Math.min(255, Number(document.getElementById("inR").value) || 0)),
+      g: Math.max(0, Math.min(255, Number(document.getElementById("inG").value) || 0)),
+      b: Math.max(0, Math.min(255, Number(document.getElementById("inB").value) || 0))
+    });
+  });
+});
+document.getElementById("inHex").addEventListener("input", e => {
+  const hex = e.target.value.trim().replace(/[^0-9a-fA-F]/g, "");
+  if (hex.length === 6) {
+    mutateCurrent({
+      r: parseInt(hex.slice(0,2),16),
+      g: parseInt(hex.slice(2,4),16),
+      b: parseInt(hex.slice(4,6),16)
+    });
+  }
+});
+document.getElementById("speedSlider").addEventListener("input", e => mutateCurrent({speed: Number(e.target.value)}));
+document.getElementById("briSlider").addEventListener("input", e => mutateCurrent({brightness: Number(e.target.value)}));
+
+document.getElementById("saveFavBtn").onclick = () => {
+  const cur = getCurrentEditable();
+  const hex = toHex(cur.r, cur.g, cur.b);
+  favorites = [hex, ...favorites.filter(x => x !== hex)].slice(0, 8);
+  localStorage.setItem("aorus_favs", JSON.stringify(favorites));
+  renderSwatches();
+};
+
+document.getElementById("autoStartChk").addEventListener("change", e => {
+  autoStart = e.target.checked;
+  postNative({action: "setAutoStart", enabled: autoStart});
+});
+
+document.getElementById("applyBtn").onclick = () => {
+  const target = config.syncMode ? "all" : activeDevice;
+  const zoneMask = (config.syncMode || activeMbZone === -1) ? 0x7F : (1 << activeMbZone);
+  postNative({action: "apply", target, zoneMask, config});
+};
+
+document.getElementById("resetBtn").onclick = () => {
+  mutateCurrent(makeZone(255, 170, 0, 1, 10, 5), true);
+  const target = config.syncMode ? "all" : activeDevice;
+  postNative({action: "apply", target, zoneMask: 0x7F, config});
+};
+
+document.getElementById("statusGroup").onclick = () => postNative({action: "init"});
+
+window.onNativeState = function(p) {
+  if (p.config) config = p.config;
+  autoStart = !!p.autoStart;
+  if (p.mbConnected && p.mbName) detectedMbName = p.mbName;
+  if (p.caseConnected && p.caseName) detectedCaseName = p.caseName;
+  document.getElementById("tabCaseLabel").innerHTML = `${detectedCaseName}<br/>Case Logo`;
+  document.getElementById("mbDot").className = "dot " + (p.mbConnected ? "ok" : "err");
+  document.getElementById("mbStatus").textContent = p.mbConnected ? `MB: ${p.mbName || "IT5702"}` : "MB: Offline";
+  document.getElementById("caseDot").className = "dot " + (p.caseConnected ? "ok" : "err");
+  document.getElementById("caseStatus").textContent = p.caseConnected ? `Case: FW ${p.caseFw}` : "Case: Offline";
+  updateUI();
+};
+
+window.onApplyResult = function(res) {
+  if (res.ok) {
+    const tag = res.saved ? "Saved ✓" : "Preview";
+    if (res.target === "mb" || res.target === "all") {
+      document.getElementById("mbStatus").textContent = `MB: ${tag}`;
+    }
+    if (res.target === "case" || res.target === "all") {
+      document.getElementById("caseStatus").textContent = `Case: ${tag}`;
+    }
+  } else if (res.saved) {
+    alert(`HID Error (case=${res.rcCase}, mb=${res.rcMb})`);
+  }
+};
+
+renderSwatches();
+updateUI();
+window.addEventListener("load", () => setTimeout(() => { updateUI(); postNative({action: "init"}); }, 60));
+</script>
+</body>
+</html>
